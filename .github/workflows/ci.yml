@@ -1,4 +1,4 @@
-name: Python / Django
+name: Code
 
 on:
   push:
