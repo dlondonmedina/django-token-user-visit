@@ -131,7 +131,14 @@ class UserVisit(models.Model):
     # see https://github.com/python/typeshed/issues/2928 re. return type
     def md5(self) -> hashlib._Hash:
         """Generate MD5 hash used to identify duplicate visits."""
-        h = hashlib.md5(str(self.user.id).encode())  # noqa: S303, S324
+        try:  # to support Python < 3.11
+            h = hashlib.md5(
+                str(self.user.id).encode(), usedforsecurity=False
+            )  # noqa: S303, S324
+        except TypeError as exc:  # noqa: F841
+            # Fails Bandit security checks but this is just a hash for
+            # comparison, so insecure hash is ok.
+            h = hashlib.md5(str(self.user.id).encode())  # nosec  # noqa: S303, S324
         h.update(self.date.isoformat().encode())
         h.update(self.session_key.encode())
         h.update(self.remote_addr.encode())
