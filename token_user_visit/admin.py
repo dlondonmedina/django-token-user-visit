@@ -1,10 +1,17 @@
 from django.contrib import admin
 
-from .models import UserVisit
+from .models import TokenUserVisit
 
 
-class UserVisitAdmin(admin.ModelAdmin):
-    list_display = ("timestamp", "user", "session_key", "remote_addr", "user_agent")
+class TokenUserVisitAdmin(admin.ModelAdmin):
+    list_display = (
+        "timestamp",
+        "user",
+        "session_key",
+        "token_key",
+        "remote_addr",
+        "user_agent",
+    )
     list_filter = ("timestamp",)
     search_fields = (
         "user__first_name",
@@ -18,6 +25,7 @@ class UserVisitAdmin(admin.ModelAdmin):
         "hash",
         "timestamp",
         "session_key",
+        "token_key",
         "remote_addr",
         "user_agent",
         "ua_string",
@@ -27,4 +35,4 @@ class UserVisitAdmin(admin.ModelAdmin):
     ordering = ("-timestamp",)
 
 
-admin.site.register(UserVisit, UserVisitAdmin)
+admin.site.register(TokenUserVisit, TokenUserVisitAdmin)

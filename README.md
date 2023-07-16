@@ -1,4 +1,4 @@
-# django-user-visit
+# django-token-user-visit
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![CI badge](https://github.com/dlondonmedina/django-token-user-visit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dlondonmedina/django-token-user-visit/actions/workflows/ci.yml?query=branch%3Amain)

@@ -11,7 +11,7 @@ def _env_or_setting(key: str, default: Any, cast_func: Callable = lambda x: x) -
 
 
 RECORDING_DISABLED = _env_or_setting(
-    "USER_VISIT_RECORDING_DISABLED", False, lambda x: bool(x)
+    "TOKEN_USER_VISIT_RECORDING_DISABLED", False, lambda x: bool(x)
 )
 
 
@@ -20,14 +20,14 @@ RECORDING_DISABLED = _env_or_setting(
 # dict. canonical example of a use case for this is extracting GeoIP
 # info.
 REQUEST_CONTEXT_EXTRACTOR: Callable[[HttpRequest], dict] = getattr(
-    settings, "USER_VISIT_REQUEST_CONTEXT_EXTRACTOR", lambda r: {}
+    settings, "TOKEN_USER_VISIT_REQUEST_CONTEXT_EXTRACTOR", lambda r: {}
 )
 
 
 # Can be used to override the JSON encoder used for the context JSON
 # fields
 REQUEST_CONTEXT_ENCODER = getattr(
-    settings, "USER_VISIT_CONTEXT_ENCODER", DjangoJSONEncoder
+    settings, "TOKEN_USER_VISIT_CONTEXT_ENCODER", DjangoJSONEncoder
 )
 
 
@@ -35,12 +35,14 @@ REQUEST_CONTEXT_ENCODER = getattr(
 # used to e.g. prevent staff users from being recorded. The function
 # must be a Callable that takes a HttpRequest arg and returns a bool -
 # if True then the recording is bypassed.
-RECORDING_BYPASS = getattr(settings, "USER_VISIT_RECORDING_BYPASS", lambda r: False)
+RECORDING_BYPASS = getattr(
+    settings, "TOKEN_USER_VISIT_RECORDING_BYPASS", lambda r: False
+)
 
 
 # The log level to use when logging duplicate hashes. This is WARNING by
 # default, but if it's noisy you can turn this down by setting this
 # value. Must be one of "debug", "info", "warning", "error"
 DUPLICATE_LOG_LEVEL: str = getattr(
-    settings, "USER_VISIT_DUPLICATE_LOG_LEVEL", "warning"
+    settings, "TOKEN_USER_VISIT_DUPLICATE_LOG_LEVEL", "warning"
 ).lower()
