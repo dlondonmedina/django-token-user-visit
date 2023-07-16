@@ -1,14 +1,14 @@
 [tool.poetry]
-name = "django-user-visit"
-version = "1.1"
-description = "Django app used to track user visits."
+name = "django-token-user-visit"
+version = "0.0.1"
+description = "A friendly fork of django-user-visit that supports sessions and tokens "
 license = "MIT"
-authors = ["YunoJuno <code@yunojuno.com>"]
-maintainers = ["YunoJuno <code@yunojuno.com>"]
+authors = ["Dylan Medina <dylan@dylanmedina.com>", "YunoJuno <code@yunojuno.com>"]
+maintainers = ["Dylan Medina <dylan@dylanmedina.com>"]
 readme = "README.md"
-homepage = "https://github.com/yunojuno/django-user-visit"
-repository = "https://github.com/yunojuno/django-user-visit"
-documentation = "https://github.com/yunojuno/django-user-visit"
+homepage = "https://github.com/dlondonmedina/django-token-user-visit"
+repository = "https://github.com/dlondonmedina/django-token-user-visit"
+documentation = "https://github.com/dlondonmedina/django-token-user-visit"
 classifiers = [
     "Environment :: Web Environment",
     "Framework :: Django",
@@ -22,20 +22,20 @@ classifiers = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
 packages = [{ include = "user_visit" }]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-django = "^3.1 || ^4.0"
+django = "^3.1 || ^3.2 || ^4.0"
 user-agents = "^2.1"
 
 [tool.poetry.dev-dependencies]
-bandit = "1.7.2"
+bandit = "1.7.5"
 black = {version = "*", allow-prereleases = true}
 coverage = "*"
 flake8 = "*"
-flake8-bandit = "*"
 flake8-blind-except = "*"
 flake8-docstrings = "*"
 flake8-logging-format = "*"
@@ -50,5 +50,15 @@ pytest-django = "*"
 tox = "*"
 
 [build-system]
-requires = ["poetry>=0.12"]
+requires = ["poetry>=1.5"]
 build-backend = "poetry.masonry.api"
+
+[tool.black]
+target-version = ['py38']
+extend-exclude = '''
+(
+    /(
+        migrations
+    )/
+)
+'''
