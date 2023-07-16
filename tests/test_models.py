@@ -6,7 +6,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.utils import timezone
 
-from user_visit.models import UserVisit, parse_remote_addr, parse_ua_string
+from token_user_visit.models import TokenUserVisit, parse_remote_addr, parse_ua_string
 
 from .utils import mock_request
 
@@ -14,7 +14,7 @@ ONE_DAY = datetime.timedelta(days=1)
 ONE_SEC = datetime.timedelta(seconds=1)
 
 
-class TestUserVisitFunctions:
+class TestTokenUserVisitFunctions:
     @pytest.mark.parametrize(
         "xff,remote,output",
         (
@@ -38,11 +38,11 @@ class TestUserVisitFunctions:
         assert parse_ua_string(request) == ua_string
 
 
-class TestUserVisitManager:
+class TestTokenUserVisitManager:
     def test_build(self):
         request = mock_request()
         timestamp = timezone.now()
-        uv = UserVisit.objects.build(request, timestamp)
+        uv = TokenUserVisit.objects.build(request, timestamp)
         assert uv.user == request.user
         assert uv.timestamp == timestamp
         assert uv.date == timestamp.date()
@@ -57,17 +57,17 @@ class TestUserVisitManager:
         request = mock_request()
         timestamp = timezone.now()
         extractor = lambda r: {"foo": "bar"}
-        with mock.patch("user_visit.models.REQUEST_CONTEXT_EXTRACTOR", extractor):
-            uv = UserVisit.objects.build(request, timestamp)
+        with mock.patch("token_user_visit.models.REQUEST_CONTEXT_EXTRACTOR", extractor):
+            uv = TokenUserVisit.objects.build(request, timestamp)
         assert uv.context == {"foo": "bar"}
 
 
-class TestUserVisit:
+class TestTokenUserVisit:
 
     UA_STRING = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36"
 
     def test_user_agent(self):
-        uv = UserVisit(ua_string=TestUserVisit.UA_STRING)
+        uv = TokenUserVisit(ua_string=TestTokenUserVisit.UA_STRING)
         assert str(uv.user_agent) == "PC / Mac OS X 10.15.5 / Chrome 83.0.4103"
 
     @pytest.mark.django_db
@@ -75,7 +75,7 @@ class TestUserVisit:
         request = mock_request()
         request.user.save()
         timestamp = timezone.now()
-        uv = UserVisit.objects.build(request, timestamp)
+        uv = TokenUserVisit.objects.build(request, timestamp)
         uv.hash = None
         uv.context = {"foo": "bar"}
         uv.save()
@@ -87,14 +87,14 @@ class TestUserVisit:
         """Check that visits on the same day but at different times, are rejected."""
         user = User.objects.create(username="Bob")
         timestamp1 = timezone.now()
-        uv1 = UserVisit.objects.create(
+        uv1 = TokenUserVisit.objects.create(
             user=user,
             session_key="test",
             ua_string="Chrome",
             remote_addr="127.0.0.1",
             timestamp=timestamp1,
         )
-        uv2 = UserVisit(
+        uv2 = TokenUserVisit(
             user=uv1.user,
             session_key=uv1.session_key,
             ua_string=uv1.ua_string,
@@ -110,7 +110,7 @@ class TestUserVisit:
         """Check that latest() is ordered by timestamp, not id."""
         user = User.objects.create(username="Bob")
         timestamp1 = timezone.now()
-        uv1 = UserVisit.objects.create(
+        uv1 = TokenUserVisit.objects.create(
             user=user,
             session_key="test",
             ua_string="Chrome",
@@ -118,7 +118,7 @@ class TestUserVisit:
             timestamp=timestamp1,
         )
         timestamp2 = timestamp1 - datetime.timedelta(seconds=1)
-        uv2 = UserVisit.objects.create(
+        uv2 = TokenUserVisit.objects.create(
             user=user,
             session_key="test",
             ua_string="Chrome",
@@ -126,11 +126,11 @@ class TestUserVisit:
             timestamp=timestamp2,
         )
         assert uv1.timestamp > uv2.timestamp
-        assert user.user_visits.latest() == uv1
+        assert user.token_user_visits.latest() == uv1
 
     def test_md5(self):
         """Check that MD5 changes when properties change."""
-        uv = UserVisit(
+        uv = TokenUserVisit(
             user=User(),
             session_key="test",
             ua_string="Chrome",

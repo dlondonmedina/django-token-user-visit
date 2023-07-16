@@ -8,11 +8,12 @@ from typing import Any
 import user_agents
 from django.conf import settings
 from django.db import models
+from django.forms import ValidationError
 from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _lazy
 
-from user_visit.settings import REQUEST_CONTEXT_ENCODER, REQUEST_CONTEXT_EXTRACTOR
+from token_user_visit.settings import REQUEST_CONTEXT_ENCODER, REQUEST_CONTEXT_EXTRACTOR
 
 
 def parse_remote_addr(request: HttpRequest) -> str:
@@ -28,12 +29,14 @@ def parse_ua_string(request: HttpRequest) -> str:
     return request.headers.get("User-Agent", "")
 
 
-class UserVisitManager(models.Manager):
+class TokenUserVisitManager(models.Manager):
     """Custom model manager for UserVisit objects."""
 
-    def build(self, request: HttpRequest, timestamp: datetime.datetime) -> UserVisit:
+    def build(
+        self, request: HttpRequest, timestamp: datetime.datetime
+    ) -> TokenUserVisit:
         """Build a new UserVisit object from a request, without saving it."""
-        uv = UserVisit(
+        uv = TokenUserVisit(
             user=request.user,
             timestamp=timestamp,
             session_key=request.session.session_key,
@@ -45,7 +48,7 @@ class UserVisitManager(models.Manager):
         return uv
 
 
-class UserVisit(models.Model):
+class TokenUserVisit(models.Model):
     """
     Record of a user visiting the site on a given day.
 
@@ -62,13 +65,20 @@ class UserVisit(models.Model):
     """
 
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, related_name="user_visits", on_delete=models.CASCADE
+        settings.AUTH_USER_MODEL,
+        related_name="token_user_visits",
+        on_delete=models.CASCADE,
     )
     timestamp = models.DateTimeField(
         help_text=_lazy("The time at which the first visit of the day was recorded"),
         default=timezone.now,
     )
-    session_key = models.CharField(help_text="Django session identifier", max_length=40)
+    session_key = models.CharField(
+        help_text="Django session identifier", max_length=40, null=True, blank=True
+    )
+    token_key = models.CharField(
+        help_text="Auth Token identifier", max_length=40, null=True, blank=True
+    )
     remote_addr = models.CharField(
         help_text=_lazy(
             "Client IP address (from X-Forwarded-For HTTP header, "
@@ -102,7 +112,7 @@ class UserVisit(models.Model):
         help_text=_lazy("Used for storing ad hoc / ephemeral data - e.g. GeoIP."),
     )
 
-    objects = UserVisitManager()
+    objects = TokenUserVisitManager()
 
     class Meta:
         get_latest_by = "timestamp"
@@ -127,6 +137,15 @@ class UserVisit(models.Model):
     def date(self) -> datetime.date:
         """Extract the date of the visit from the timestamp."""
         return self.timestamp.date()
+
+    def clean(self) -> None:
+        """Provide custom validateion to XOR session and token keys."""
+        if bool(self.session_key) and bool(self.token_key):
+            raise ValidationError(
+                _lazy(
+                    "This must use a session_key or a token_key. Not both or neither."
+                )
+            )
 
     # see https://github.com/python/typeshed/issues/2928 re. return type
     def md5(self) -> hashlib._Hash:

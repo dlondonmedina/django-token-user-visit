@@ -6,7 +6,7 @@ from django.core.exceptions import MiddlewareNotUsed
 from django.http import HttpRequest, HttpResponse
 from django.utils import timezone
 
-from user_visit.models import UserVisit
+from token_user_visit.models import TokenUserVisit
 
 from .settings import DUPLICATE_LOG_LEVEL, RECORDING_BYPASS, RECORDING_DISABLED
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 @django.db.transaction.atomic
-def save_user_visit(user_visit: UserVisit) -> None:
+def save_user_visit(user_visit: TokenUserVisit) -> None:
     """Save the user visit and handle db.IntegrityError."""
     try:
         user_visit.save()
@@ -24,12 +24,12 @@ def save_user_visit(user_visit: UserVisit) -> None:
         )
 
 
-class UserVisitMiddleware:
+class TokenUserVisitMiddleware:
     """Middleware to record user visits."""
 
     def __init__(self, get_response: typing.Callable) -> None:
         if RECORDING_DISABLED:
-            raise MiddlewareNotUsed("UserVisit recording has been disabled")
+            raise MiddlewareNotUsed("TokenUserVisit recording has been disabled")
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> typing.Optional[HttpResponse]:
@@ -39,8 +39,8 @@ class UserVisitMiddleware:
         if RECORDING_BYPASS(request):
             return self.get_response(request)
 
-        uv = UserVisit.objects.build(request, timezone.now())
-        if not UserVisit.objects.filter(hash=uv.hash).exists():
+        uv = TokenUserVisit.objects.build(request, timezone.now())
+        if not TokenUserVisit.objects.filter(hash=uv.hash).exists():
             save_user_visit(uv)
 
         return self.get_response(request)

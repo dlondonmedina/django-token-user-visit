@@ -15,7 +15,7 @@ INSTALLED_APPS = (
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "user_visit",
+    "token_user_visit",
     "tests",
 )
 
@@ -27,7 +27,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     # this package's middleware
-    "user_visit.middleware.UserVisitMiddleware",
+    "token_user_visit.middleware.TokenUserVisitMiddleware",
 ]
 
 PROJECT_DIR = path.abspath(path.join(path.dirname(__file__)))
