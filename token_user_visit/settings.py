@@ -46,3 +46,11 @@ RECORDING_BYPASS = getattr(
 DUPLICATE_LOG_LEVEL: str = getattr(
     settings, "TOKEN_USER_VISIT_DUPLICATE_LOG_LEVEL", "warning"
 ).lower()
+
+
+# Function to be used to explicitly enable Session based recording
+# The function must be a Callable that takes a HttpRequest arg and returns
+# a bool - if True then the we only use session_keys.
+ACTIVATE_SESSION_ONLY_RECORDING: Callable[[HttpRequest], bool] = getattr(
+    settings, "TOKEN_USER_VISIT_SESSION_ACTIVATOR", lambda r: False
+)

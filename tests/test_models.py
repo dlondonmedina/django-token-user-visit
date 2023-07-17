@@ -1,9 +1,11 @@
 import datetime
+import hashlib
 from unittest import mock
 
 import django.db
 import pytest
 from django.contrib.auth.models import User
+from django.test import RequestFactory
 from django.utils import timezone
 
 from token_user_visit.models import TokenUserVisit, parse_remote_addr, parse_ua_string
@@ -39,17 +41,36 @@ class TestTokenUserVisitFunctions:
 
 
 class TestTokenUserVisitManager:
-    def test_build(self):
+    def test_session_build(self):
         request = mock_request()
         timestamp = timezone.now()
-        uv = TokenUserVisit.objects.build(request, timestamp)
+        uv = TokenUserVisit.objects.build_with_session(request, timestamp)
         assert uv.user == request.user
         assert uv.timestamp == timestamp
         assert uv.date == timestamp.date()
         assert uv.session_key == "test"
         assert uv.ua_string == "Chrome 99"
         assert uv.remote_addr == "127.0.0.1"
-        assert uv.hash == uv.md5().hexdigest()
+        assert uv.hash == uv.sha256().hexdigest()
+        assert uv.uuid is not None
+        assert uv.pk is None
+
+    @pytest.mark.parametrize("token", ("Bearer testtoken123456",))
+    def test_token_build(self, token):
+        request = mock_request()
+        request.META["HTTP_AUTHORIZATION"] = f"Bearer {token}"
+        timestamp = timezone.now()
+        uv = TokenUserVisit.objects.build_with_token(request, timestamp)
+        assert uv.user == request.user
+        assert uv.timestamp == timestamp
+        assert uv.date == timestamp.date()
+        assert (
+            uv.token_key
+            == hashlib.sha256(token.replace("Bearer ", "").encode()).hexdigest()
+        )
+        assert uv.ua_string == "Chrome 99"
+        assert uv.remote_addr == "127.0.0.1"
+        assert uv.hash == uv.sha256().hexdigest()
         assert uv.uuid is not None
         assert uv.pk is None
 
@@ -58,12 +79,11 @@ class TestTokenUserVisitManager:
         timestamp = timezone.now()
         extractor = lambda r: {"foo": "bar"}
         with mock.patch("token_user_visit.models.REQUEST_CONTEXT_EXTRACTOR", extractor):
-            uv = TokenUserVisit.objects.build(request, timestamp)
+            uv = TokenUserVisit.objects.build_with_session(request, timestamp)
         assert uv.context == {"foo": "bar"}
 
 
 class TestTokenUserVisit:
-
     UA_STRING = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36"
 
     def test_user_agent(self):
@@ -71,16 +91,29 @@ class TestTokenUserVisit:
         assert str(uv.user_agent) == "PC / Mac OS X 10.15.5 / Chrome 83.0.4103"
 
     @pytest.mark.django_db
-    def test_save(self):
+    def test_save_with_session(self):
         request = mock_request()
         request.user.save()
         timestamp = timezone.now()
-        uv = TokenUserVisit.objects.build(request, timestamp)
+        uv = TokenUserVisit.objects.build_with_session(request, timestamp)
         uv.hash = None
         uv.context = {"foo": "bar"}
         uv.save()
         assert uv.hash is not None
-        assert uv.hash == uv.md5().hexdigest()
+        assert uv.hash == uv.sha256().hexdigest()
+
+    @pytest.mark.django_db
+    def test_save_with_token(self):
+        request = mock_request()
+        request.user.save()
+        request.META["HTTP_AUTHORIZATION"] = f"Bearer testtoken123456"
+        timestamp = timezone.now()
+        uv = TokenUserVisit.objects.build_with_token(request, timestamp)
+        uv.hash = None
+        uv.context = {"foo": "bar"}
+        uv.save()
+        assert uv.hash is not None
+        assert uv.hash == uv.sha256().hexdigest()
 
     @pytest.mark.django_db
     def test_unique(self):
@@ -128,8 +161,8 @@ class TestTokenUserVisit:
         assert uv1.timestamp > uv2.timestamp
         assert user.token_user_visits.latest() == uv1
 
-    def test_md5(self):
-        """Check that MD5 changes when properties change."""
+    def test_sha256(self):
+        """Check that SHA256 changes when properties change."""
         uv = TokenUserVisit(
             user=User(),
             session_key="test",
@@ -137,18 +170,18 @@ class TestTokenUserVisit:
             remote_addr="127.0.0.1",
             timestamp=timezone.now(),
         )
-        h1 = uv.md5().hexdigest()
+        h1 = uv.sha256().hexdigest()
         uv.session_key = "test2"
-        assert uv.md5().hexdigest() != h1
+        assert uv.sha256().hexdigest() != h1
         uv.session_key = "test"
 
         uv.ua_string = "Chrome99"
-        assert uv.md5().hexdigest() != h1
+        assert uv.sha256().hexdigest() != h1
         uv.ua_string = "Chrome"
 
         uv.remote_addr = "192.168.0.1"
-        assert uv.md5().hexdigest() != h1
+        assert uv.sha256().hexdigest() != h1
         uv.remote_addr = "127.0.0.1"
 
         uv.user.id = 2
-        assert uv.md5().hexdigest() != h1
+        assert uv.sha256().hexdigest() != h1
