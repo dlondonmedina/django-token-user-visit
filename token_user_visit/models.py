@@ -29,13 +29,19 @@ def parse_ua_string(request: HttpRequest) -> str:
     return request.headers.get("User-Agent", "")
 
 
+def parse_encrypt_token(request: HttpRequest) -> str:
+    """Extract and encrypt bearer token from request."""
+    token = request.META.get("HTTP_AUTHORIZATION").replace("Bearer ", "")
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 class TokenUserVisitManager(models.Manager):
     """Custom model manager for UserVisit objects."""
 
-    def build(
+    def build_with_session(
         self, request: HttpRequest, timestamp: datetime.datetime
     ) -> TokenUserVisit:
-        """Build a new UserVisit object from a request, without saving it."""
+        """Build a new TokenUserVisit object  from a request, without saving it."""
         uv = TokenUserVisit(
             user=request.user,
             timestamp=timestamp,
@@ -44,7 +50,22 @@ class TokenUserVisitManager(models.Manager):
             ua_string=parse_ua_string(request),
             context=REQUEST_CONTEXT_EXTRACTOR(request),
         )
-        uv.hash = uv.md5().hexdigest()
+        uv.hash = uv.sha256().hexdigest()
+        return uv
+
+    def build_with_token(
+        self, request: HttpRequest, timestamp: datetime.datetime
+    ) -> TokenUserVisit:
+        """Build a new TokenUserVisit object from a request, without saving it."""
+        uv = TokenUserVisit(
+            user=request.user,
+            timestamp=timestamp,
+            token_key=parse_encrypt_token(request),
+            remote_addr=parse_remote_addr(request),
+            ua_string=parse_ua_string(request),
+            context=REQUEST_CONTEXT_EXTRACTOR(request),
+        )
+        uv.hash = uv.sha256().hexdigest()
         return uv
 
 
@@ -77,7 +98,7 @@ class TokenUserVisit(models.Model):
         help_text="Django session identifier", max_length=40, null=True, blank=True
     )
     token_key = models.CharField(
-        help_text="Auth Token identifier", max_length=40, null=True, blank=True
+        help_text="Auth Token identifier", max_length=64, null=True, blank=True
     )
     remote_addr = models.CharField(
         help_text=_lazy(
@@ -94,8 +115,8 @@ class TokenUserVisit(models.Model):
     )
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     hash = models.CharField(
-        max_length=32,
-        help_text=_lazy("MD5 hash generated from request properties"),
+        max_length=64,
+        help_text=_lazy("SHA256 hash generated from request properties"),
         unique=True,
     )
     created_at = models.DateTimeField(
@@ -125,7 +146,7 @@ class TokenUserVisit(models.Model):
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         """Set hash property and save object."""
-        self.hash = self.md5().hexdigest()
+        self.hash = self.sha256().hexdigest()
         super().save(*args, **kwargs)
 
     @property
@@ -148,18 +169,14 @@ class TokenUserVisit(models.Model):
             )
 
     # see https://github.com/python/typeshed/issues/2928 re. return type
-    def md5(self) -> hashlib._Hash:
+    def sha256(self) -> hashlib._Hash:
         """Generate MD5 hash used to identify duplicate visits."""
-        try:  # to support Python < 3.11
-            h = hashlib.md5(
-                str(self.user.id).encode(), usedforsecurity=False
-            )  # noqa: S303, S324
-        except TypeError as exc:  # noqa: F841
-            # Fails Bandit security checks but this is just a hash for
-            # comparison, so insecure hash is ok.
-            h = hashlib.md5(str(self.user.id).encode())  # nosec  # noqa: S303, S324
+        h = hashlib.sha256(str(self.user.id).encode())  # noqa: S303, S324
         h.update(self.date.isoformat().encode())
-        h.update(self.session_key.encode())
+        if self.session_key is not None:
+            h.update(self.session_key.encode())
+        elif self.token_key is not None:
+            h.update(self.token_key.encode())
         h.update(self.remote_addr.encode())
         h.update(self.ua_string.encode())
         return h

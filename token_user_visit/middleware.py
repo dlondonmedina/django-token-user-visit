@@ -8,7 +8,12 @@ from django.utils import timezone
 
 from token_user_visit.models import TokenUserVisit
 
-from .settings import DUPLICATE_LOG_LEVEL, RECORDING_BYPASS, RECORDING_DISABLED
+from .settings import (
+    ACTIVATE_SESSION_ONLY_RECORDING,
+    DUPLICATE_LOG_LEVEL,
+    RECORDING_BYPASS,
+    RECORDING_DISABLED,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +38,27 @@ class TokenUserVisitMiddleware:
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> typing.Optional[HttpResponse]:
-        if request.user.is_anonymous:
-            return self.get_response(request)
-
         if RECORDING_BYPASS(request):
             return self.get_response(request)
 
-        uv = TokenUserVisit.objects.build(request, timezone.now())
+        if request.META.get("HTTP_AUTHORIZATION", "").startswith(
+            "Bearer"
+        ) and not ACTIVATE_SESSION_ONLY_RECORDING(request):
+            uv = TokenUserVisit.objects.build_with_token(request, timezone.now())
+
+        elif request.user.is_anonymous:
+            return self.get_response(request)
+
+        elif request.session.session_key is not None:
+            uv = TokenUserVisit.objects.build_with_session(request, timezone.now())
+
+        else:
+            getattr(logger, "warning")(
+                f"Error creating user visit. No token or session for user: \
+                {request.user}"
+            )
+            return self.get_response(request)
+
         if not TokenUserVisit.objects.filter(hash=uv.hash).exists():
             save_user_visit(uv)
 
