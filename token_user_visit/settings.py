@@ -54,3 +54,10 @@ DUPLICATE_LOG_LEVEL: str = getattr(
 ACTIVATE_SESSION_ONLY_RECORDING: Callable[[HttpRequest], bool] = getattr(
     settings, "TOKEN_USER_VISIT_SESSION_ACTIVATOR", lambda r: False
 )
+
+
+TOKEN_AUTHENTICATION_CLASS: type = getattr(
+    settings, "TOKEN_USER_VISIT_AUTHENTICATION_CLASS", None
+)
+
+TOKEN_KEYWORD: str = getattr(settings, "TOKEN_USER_VISIT_KEYWORD", "Bearer")
