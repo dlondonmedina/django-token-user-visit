@@ -5,7 +5,6 @@ from unittest import mock
 import django.db
 import pytest
 from django.contrib.auth.models import User
-from django.test import RequestFactory
 from django.utils import timezone
 
 from token_user_visit.models import TokenUserVisit, parse_remote_addr, parse_ua_string
@@ -106,7 +105,7 @@ class TestTokenUserVisit:
     def test_save_with_token(self):
         request = mock_request()
         request.user.save()
-        request.META["HTTP_AUTHORIZATION"] = f"Bearer testtoken123456"
+        request.META["HTTP_AUTHORIZATION"] = "Bearer testtoken123456"
         timestamp = timezone.now()
         uv = TokenUserVisit.objects.build_with_token(request, timestamp)
         uv.hash = None

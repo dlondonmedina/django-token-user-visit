@@ -2,9 +2,10 @@ import logging
 import typing
 
 import django.db
-from django.core.exceptions import MiddlewareNotUsed
+from django.core.exceptions import ImproperlyConfigured, MiddlewareNotUsed
 from django.http import HttpRequest, HttpResponse
 from django.utils import timezone
+from django.utils.cache import patch_vary_headers
 
 from token_user_visit.models import TokenUserVisit
 
@@ -13,6 +14,8 @@ from .settings import (
     DUPLICATE_LOG_LEVEL,
     RECORDING_BYPASS,
     RECORDING_DISABLED,
+    TOKEN_AUTHENTICATION_CLASS,
+    TOKEN_KEYWORD,
 )
 
 logger = logging.getLogger(__name__)
@@ -29,6 +32,10 @@ def save_user_visit(user_visit: TokenUserVisit) -> None:
         )
 
 
+def check_for_token(request: HttpRequest) -> bool:
+    return request.META.get("HTTP_AUTHORIZATION", "").startswith(TOKEN_KEYWORD)
+
+
 class TokenUserVisitMiddleware:
     """Middleware to record user visits."""
 
@@ -41,9 +48,7 @@ class TokenUserVisitMiddleware:
         if RECORDING_BYPASS(request):
             return self.get_response(request)
 
-        if request.META.get("HTTP_AUTHORIZATION", "").startswith(
-            "Bearer"
-        ) and not ACTIVATE_SESSION_ONLY_RECORDING(request):
+        if check_for_token(request) and not ACTIVATE_SESSION_ONLY_RECORDING(request):
             uv = TokenUserVisit.objects.build_with_token(request, timezone.now())
 
         elif request.user.is_anonymous:
@@ -63,3 +68,28 @@ class TokenUserVisitMiddleware:
             save_user_visit(uv)
 
         return self.get_response(request)
+
+
+class RequestUserSetterMiddleware:
+    """Middleware to set the request.user."""
+
+    def __init__(self, get_response: typing.Callable) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> typing.Optional[HttpResponse]:
+        if check_for_token(request) and (
+            hasattr(request, "user") is None or request.user.is_anonymous
+        ):
+            try:
+                user = TOKEN_AUTHENTICATION_CLASS.authenticate(  # type: ignore
+                    TOKEN_AUTHENTICATION_CLASS(), request=request
+                )
+            except AttributeError:
+                raise ImproperlyConfigured(
+                    "TOKEN_AUTHENTICATION_CLASS must be set to use this middleware."
+                )
+            if user:
+                request.user = request._cached_user = user[0]
+        response = self.get_response(request)
+        patch_vary_headers(response, ("Authorization",))
+        return response
