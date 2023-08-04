@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "django-token-user-visit"
-version = "0.0.1"
+version = "0.1.0"
 description = "A friendly fork of django-user-visit that supports sessions and tokens "
 license = "MIT"
 authors = ["Dylan Medina <dylan@dylanmedina.com>", "YunoJuno <code@yunojuno.com>"]
