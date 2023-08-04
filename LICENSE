@@ -1,6 +1,8 @@
 MIT License
 
-Copyright (c) 2021 yunojuno
+Copyright for portions of project django-token-user-visit are held by yunojuno, 
+2021 as part of project django-user-visit. All other copyright fro project 
+django-token-user-visit are held by dylanmedina, 2023. 
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
