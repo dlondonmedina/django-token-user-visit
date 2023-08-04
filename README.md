@@ -115,9 +115,9 @@ This allows you to modify the Keyword identifying the token to something else. G
 
 Admin list view:
 
-![UserVisit list view](assets/screenshot-admin-list-view.png)
+![UserVisit list view](assets/screenshot-list-view.png)
 
 Admin edit view:
 
-![UserVisit edit view](assets/screenshot-admin-edit-view.png)
+![UserVisit edit view](assets/screenshot-edit-view.png)
 
