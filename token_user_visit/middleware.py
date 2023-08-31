@@ -48,11 +48,13 @@ class TokenUserVisitMiddleware:
         if RECORDING_BYPASS(request):
             return self.get_response(request)
 
+        if request.user.is_anonymous:
+            # Getting the request.user instantiated is beyond the scope of
+            # this middleware if the RequestUserSetterMiddleware didn't work.
+            return self.get_response(request)
+
         if check_for_token(request) and not ACTIVATE_SESSION_ONLY_RECORDING(request):
             uv = TokenUserVisit.objects.build_with_token(request, timezone.now())
-
-        elif request.user.is_anonymous:
-            return self.get_response(request)
 
         elif request.session.session_key is not None:
             uv = TokenUserVisit.objects.build_with_session(request, timezone.now())
