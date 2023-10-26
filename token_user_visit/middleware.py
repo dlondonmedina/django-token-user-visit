@@ -6,6 +6,7 @@ from django.core.exceptions import ImproperlyConfigured, MiddlewareNotUsed
 from django.http import HttpRequest, HttpResponse
 from django.utils import timezone
 from django.utils.cache import patch_vary_headers
+from django.utils.module_loading import import_string
 
 from token_user_visit.models import TokenUserVisit
 
@@ -19,6 +20,9 @@ from .settings import (
 )
 
 logger = logging.getLogger(__name__)
+
+if TOKEN_AUTHENTICATION_CLASS is not None:
+    TOKEN_AUTHENTICATION_CLASS = import_string(TOKEN_AUTHENTICATION_CLASS)
 
 
 @django.db.transaction.atomic
